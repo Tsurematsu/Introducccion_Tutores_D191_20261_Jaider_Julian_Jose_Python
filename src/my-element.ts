@@ -20,7 +20,8 @@ export class MyElement extends LitElement {
     return html`
       <!-- <pagina-estudiante></pagina-estudiante> -->
       <!-- <pagina-tutor></pagina-tutor> -->
-      <pagina-admin></pagina-admin>
+      <!-- <pagina-admin></pagina-admin> -->
+       <page-login></page-login>
     `
   }
 }
