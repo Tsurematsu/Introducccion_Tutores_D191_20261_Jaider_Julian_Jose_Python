@@ -18,10 +18,10 @@ export class MyElement extends LitElement {
 
   render() {
     return html`
-      <!-- <pagina-estudiante></pagina-estudiante> -->
+      <pagina-estudiante></pagina-estudiante>
       <!-- <pagina-tutor></pagina-tutor> -->
       <!-- <pagina-admin></pagina-admin> -->
-       <page-login></page-login>
+       <!-- <page-login></page-login> -->
     `
   }
 }
