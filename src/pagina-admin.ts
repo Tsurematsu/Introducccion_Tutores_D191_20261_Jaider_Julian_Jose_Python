@@ -1,4 +1,4 @@
-import { LitElement, css, html, type TemplateResult } from 'lit';
+import { LitElement, html, type TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 @customElement('pagina-admin')

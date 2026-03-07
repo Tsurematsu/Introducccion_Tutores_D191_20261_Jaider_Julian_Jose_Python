@@ -1,13 +1,12 @@
-import { LitElement, css, html } from 'lit'
+import { LitElement, html } from 'lit'
 import { customElement } from 'lit/decorators.js'
 import './index.css'
+import './app-shell.js'
 import.meta.glob('./**/*.ts', { eager: true });
 
 /**
- * An example element.
- *
- * @slot - This element has a slot
- * @csspart button - The button
+ * Punto de entrada principal de la app.
+ * El routing real está en <app-shell>.
  */
 @customElement('my-element')
 export class MyElement extends LitElement {
@@ -18,10 +17,7 @@ export class MyElement extends LitElement {
 
   render() {
     return html`
-      <pagina-estudiante></pagina-estudiante>
-      <!-- <pagina-tutor></pagina-tutor> -->
-      <!-- <pagina-admin></pagina-admin> -->
-       <!-- <page-login></page-login> -->
+      <app-shell></app-shell>
     `
   }
 }
