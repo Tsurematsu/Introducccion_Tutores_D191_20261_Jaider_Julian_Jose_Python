@@ -3,7 +3,7 @@
 |---|---|---|
 | **Admin** | `admin@edututor.com` | `Admin123!` |
 | Tutor Demo | `tutor@edututor.com` | `Tutor123!` |
-| Estudiante Demo | `estudiante@edututor.com` | `   ` |
+| Estudiante Demo | `estudiante@edututor.com` | `Student123!` |
 
 
 Ran command: `npm run dev`

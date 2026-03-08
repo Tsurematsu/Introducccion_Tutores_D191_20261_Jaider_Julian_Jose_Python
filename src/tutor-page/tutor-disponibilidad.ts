@@ -58,7 +58,8 @@ export class TutorDisponibilidad extends LitElement {
     try {
       const u = getUsuario();
       if (!u) return;
-      const r = await fetch(`/api/disponibilidad?tutor_id=${u.id}`, {
+      const tutorId = (u as { perfil_id?: number | null }).perfil_id ?? u.id;
+      const r = await fetch(`/api/disponibilidad?tutor_id=${tutorId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (!r.ok) throw new Error(await r.text());
@@ -78,7 +79,8 @@ export class TutorDisponibilidad extends LitElement {
     try {
       const u = getUsuario();
       if (!u) return;
-      const r = await fetch(`/api/disponibilidad?tutor_id=${u.id}`, {
+      const tutorId = (u as { perfil_id?: number | null }).perfil_id ?? u.id;
+      const r = await fetch(`/api/disponibilidad?tutor_id=${tutorId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

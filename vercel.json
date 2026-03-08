@@ -14,18 +14,20 @@
     }
   ],
   "routes": [
-    { "src": "/api/init-db",     "dest": "/api/init-db.js"     },
-    { "src": "/api/login",       "dest": "/api/login.js"        },
-    { "src": "/api/me",          "dest": "/api/me.js"           },
-    { "src": "/api/estudiantes", "dest": "/api/estudiantes.js"  },
-    { "src": "/api/tutores",     "dest": "/api/tutores.js"      },
-    { "src": "/api/tutorias",    "dest": "/api/tutorias.js"     },
-    { "src": "/api/sesiones",    "dest": "/api/sesiones.js"     },
-    { "src": "/api/asignaciones","dest": "/api/asignaciones.js" },
-    { "src": "/(.*)",            "dest": "/index.html"          }
+    { "src": "/api/init-db",       "dest": "/api/init-db.js"       },
+    { "src": "/api/login",         "dest": "/api/login.js"         },
+    { "src": "/api/me",            "dest": "/api/me.js"            },
+    { "src": "/api/usuarios",      "dest": "/api/usuarios.js"      },
+    { "src": "/api/estudiantes",   "dest": "/api/estudiantes.js"   },
+    { "src": "/api/tutores",       "dest": "/api/tutores.js"       },
+    { "src": "/api/tutorias",      "dest": "/api/tutorias.js"      },
+    { "src": "/api/sesiones",      "dest": "/api/sesiones.js"      },
+    { "src": "/api/asignaciones",  "dest": "/api/asignaciones.js"  },
+    { "src": "/api/disponibilidad","dest": "/api/disponibilidad.js"},
+    { "src": "/(.*)",              "dest": "/index.html"           }
   ],
   "env": {
-    "DATABASE_URL": "@database_url",
+    "POSTGRES_URL": "@postgres_url",
     "JWT_SECRET":   "@jwt_secret",
     "NODE_ENV":     "production"
   }

@@ -47,10 +47,12 @@ export default async function handler(req, res) {
 
       const hash = bcrypt.hashSync(password, 10);
 
-      // Transacción: usuario + perfil
-      await db.query('BEGIN');
+      // Transacción: usuario + perfil (usando client para aislar la tx)
+      const client = await db.connect();
       try {
-        const { rows: [usuario] } = await db.query(
+        await client.query('BEGIN');
+
+        const { rows: [usuario] } = await client.query(
           `INSERT INTO usuarios (nombre, email, password, rol)
            VALUES ($1, $2, $3, $4) RETURNING id, nombre, email, rol, creado_en`,
           [nombre, email, hash, rol]
@@ -58,14 +60,14 @@ export default async function handler(req, res) {
 
         let perfil = null;
         if (rol === 'estudiante') {
-          const { rows: [p] } = await db.query(
+          const { rows: [p] } = await client.query(
             `INSERT INTO estudiantes (nombre, email, carrera, semestre)
              VALUES ($1, $2, $3, $4) RETURNING *`,
             [nombre, email, carrera ?? null, semestre ?? null]
           );
           perfil = p;
         } else if (rol === 'tutor') {
-          const { rows: [p] } = await db.query(
+          const { rows: [p] } = await client.query(
             `INSERT INTO tutores (nombre, email, especialidades)
              VALUES ($1, $2, $3) RETURNING *`,
             [nombre, email, especialidades ?? []]
@@ -73,11 +75,13 @@ export default async function handler(req, res) {
           perfil = p;
         }
 
-        await db.query('COMMIT');
+        await client.query('COMMIT');
         return res.status(201).json({ usuario, perfil });
       } catch (txErr) {
-        await db.query('ROLLBACK');
+        await client.query('ROLLBACK');
         throw txErr;
+      } finally {
+        client.release();
       }
     }
 
@@ -86,27 +90,28 @@ export default async function handler(req, res) {
     if (req.method === 'DELETE') {
       if (!id) return sendError(res, 400, 'Falta el parámetro id');
 
-      // Obtener el usuario para saber su rol y email
       const { rows: [u] } = await db.query(
         'SELECT id, email, rol FROM usuarios WHERE id = $1', [id]
       );
       if (!u) return sendError(res, 404, 'Usuario no encontrado');
 
-      await db.query('BEGIN');
+      const client = await db.connect();
       try {
-        // Eliminar perfil primero (si corresponde)
+        await client.query('BEGIN');
+        // Eliminar perfil primero (FK)
         if (u.rol === 'estudiante') {
-          await db.query('DELETE FROM estudiantes WHERE email = $1', [u.email]);
+          await client.query('DELETE FROM estudiantes WHERE email = $1', [u.email]);
         } else if (u.rol === 'tutor') {
-          await db.query('DELETE FROM tutores WHERE email = $1', [u.email]);
+          await client.query('DELETE FROM tutores WHERE email = $1', [u.email]);
         }
-        // Eliminar cuenta
-        await db.query('DELETE FROM usuarios WHERE id = $1', [id]);
-        await db.query('COMMIT');
+        await client.query('DELETE FROM usuarios WHERE id = $1', [id]);
+        await client.query('COMMIT');
         return res.status(200).json({ ok: true, message: 'Usuario y perfil eliminados' });
       } catch (txErr) {
-        await db.query('ROLLBACK');
+        await client.query('ROLLBACK');
         throw txErr;
+      } finally {
+        client.release();
       }
     }
 

@@ -1,84 +1,57 @@
 // api/login.js — Vercel Serverless Function
 // POST /api/login → { email, password } → { token, rol, nombre }
 
-import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-// Reutilizar el pool entre invocaciones (warm starts)
-let pool;
-
-function getPool() {
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    });
-  }
-  return pool;
-}
+import { getPool, setCors, sendError } from './_db.js';
 
 export default async function handler(req, res) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método no permitido' });
-  }
+  setCors(res, 'POST, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return sendError(res, 405, 'Método no permitido');
 
   const { email, password } = req.body || {};
-
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email y contraseña son requeridos' });
+    return sendError(res, 400, 'Email y contraseña son requeridos');
   }
 
+  const client = await getPool().connect();
   try {
-    const db = getPool();
-
-    // Buscar usuario en la base de datos
-    // La tabla debe tener: id, email, password (hash bcrypt), rol, nombre
-    const result = await db.query(
+    // Buscar usuario
+    const { rows } = await client.query(
       'SELECT id, email, password, rol, nombre FROM usuarios WHERE email = $1 LIMIT 1',
       [email.toLowerCase().trim()]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Credenciales incorrectas' });
-    }
+    if (!rows.length) return sendError(res, 401, 'Credenciales incorrectas');
 
-    const usuario = result.rows[0];
+    const usuario = rows[0];
 
     // Verificar contraseña
-    const passwordValida = await bcrypt.compare(password, usuario.password);
+    const ok = await bcrypt.compare(password, usuario.password);
+    if (!ok) return sendError(res, 401, 'Credenciales incorrectas');
 
-    if (!passwordValida) {
-      return res.status(401).json({ error: 'Credenciales incorrectas' });
-    }
-
-    // Generar JWT
-    // Buscar el id del perfil específico (estudiantes o tutores) por email
+    // Buscar perfil_id específico (estudiantes / tutores)
     let perfilId = null;
     if (usuario.rol === 'estudiante') {
-      const perfil = await db.query('SELECT id FROM estudiantes WHERE email = $1 LIMIT 1', [usuario.email]);
-      if (perfil.rows.length > 0) perfilId = perfil.rows[0].id;
+      const { rows: p } = await client.query(
+        'SELECT id FROM estudiantes WHERE email = $1 LIMIT 1', [usuario.email]
+      );
+      if (p.length) perfilId = p[0].id;
     } else if (usuario.rol === 'tutor') {
-      const perfil = await db.query('SELECT id FROM tutores WHERE email = $1 LIMIT 1', [usuario.email]);
-      if (perfil.rows.length > 0) perfilId = perfil.rows[0].id;
+      const { rows: p } = await client.query(
+        'SELECT id FROM tutores WHERE email = $1 LIMIT 1', [usuario.email]
+      );
+      if (p.length) perfilId = p[0].id;
     }
 
     const token = jwt.sign(
       {
-        id: usuario.id,
+        id:        usuario.id,
         perfil_id: perfilId,   // ID en la tabla estudiantes/tutores (null para admin)
-        email: usuario.email,
-        rol: usuario.rol,
-        nombre: usuario.nombre,
+        email:     usuario.email,
+        rol:       usuario.rol,
+        nombre:    usuario.nombre,
       },
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
@@ -86,12 +59,14 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       token,
-      rol: usuario.rol,
+      rol:    usuario.rol,
       nombre: usuario.nombre,
-      email: usuario.email,
+      email:  usuario.email,
     });
-  } catch (error) {
-    console.error('[API/LOGIN] Error:', error);
-    return res.status(500).json({ error: 'Error interno del servidor' });
+  } catch (err) {
+    console.error('[api/login]', err);
+    return sendError(res, 500, 'Error interno del servidor', err.message);
+  } finally {
+    client.release();
   }
 }

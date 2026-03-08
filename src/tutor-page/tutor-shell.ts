@@ -4,19 +4,21 @@ import { getUsuario, logout } from '../router';
 import './tutor-overview';
 import './tutor-schedule';
 import './tutor-sesiones';
+import './tutor-seguimiento';
 import './tutor-estudiantes';
 import './tutor-settings';
 import './tutor-disponibilidad';
 
-type TutorPage = 'overview' | 'schedule' | 'sesiones' | 'estudiantes' | 'settings' | 'disponibilidad';
+type TutorPage = 'overview' | 'schedule' | 'sesiones' | 'seguimiento' | 'estudiantes' | 'settings' | 'disponibilidad';
 
 const SIDE_NAV: { id: TutorPage; label: string; icon: string }[] = [
-  { id: 'overview',        label: 'Overview',            icon: 'grid_view'      },
-  { id: 'schedule',        label: 'Mis Asignaciones',    icon: 'calendar_today' },
-  { id: 'sesiones',        label: 'Historial Sesiones',  icon: 'history'        },
-  { id: 'estudiantes',     label: 'Mis Estudiantes',     icon: 'group'          },
-  { id: 'disponibilidad',  label: 'Disponibilidad',      icon: 'manage_history' },
-  { id: 'settings',        label: 'Configuración',       icon: 'settings'       },
+  { id: 'overview',        label: 'Overview',            icon: 'grid_view'         },
+  { id: 'schedule',        label: 'Mis Asignaciones',    icon: 'calendar_today'    },
+  { id: 'seguimiento',     label: 'Seguimiento',         icon: 'manage_search'     },
+  { id: 'sesiones',        label: 'Historial Sesiones',  icon: 'history'           },
+  { id: 'estudiantes',     label: 'Mis Estudiantes',     icon: 'group'             },
+  { id: 'disponibilidad',  label: 'Disponibilidad',      icon: 'manage_history'    },
+  { id: 'settings',        label: 'Configuración',       icon: 'settings'          },
 ];
 
 @customElement('pagina-tutor')
@@ -30,6 +32,7 @@ export class PaginaTutor extends LitElement {
   private _renderPage(): TemplateResult {
     switch (this.activePage) {
       case 'schedule':       return html`<tutor-schedule></tutor-schedule>`;
+      case 'seguimiento':    return html`<tutor-seguimiento></tutor-seguimiento>`;
       case 'sesiones':       return html`<tutor-sesiones></tutor-sesiones>`;
       case 'estudiantes':    return html`<tutor-estudiantes></tutor-estudiantes>`;
       case 'disponibilidad': return html`<tutor-disponibilidad></tutor-disponibilidad>`;

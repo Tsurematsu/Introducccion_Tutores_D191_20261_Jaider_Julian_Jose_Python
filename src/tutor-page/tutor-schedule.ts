@@ -82,7 +82,19 @@ export class TutorSchedule extends LitElement {
 
   createRenderRoot() { return this; }
 
-  connectedCallback() { super.connectedCallback(); this._cargar(); }
+  connectedCallback() {
+    super.connectedCallback();
+    this._cargar();
+    // Cuando el tutor cambia un estado en Seguimiento, refrescar el calendario
+    window.addEventListener('tutoria-estado-cambiado', this._onEstadoCambiado);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('tutoria-estado-cambiado', this._onEstadoCambiado);
+  }
+
+  private _onEstadoCambiado = () => { this._cargar(); };
 
   /* ── API ────────────────────────────────────────────────────────────── */
   private get _token() { return localStorage.getItem('token') ?? ''; }
@@ -101,20 +113,28 @@ export class TutorSchedule extends LitElement {
         fetch(`/api/asignaciones?tutor_id=${tutorId}`, { headers }),
         fetch(`/api/tutorias?tutor_id=${tutorId}`, { headers }),
       ]);
-      const asignaciones: Asignacion[] = (await rA.json()) ?? [];
+      const asignacionesBase: Asignacion[] = (await rA.json()) ?? [];
       const tutorias = (await rT.json()) ?? [];
+
+      // Estados que liberan el slot del calendario
+      const ESTADOS_TERMINADOS = ['COMPLETADO', 'CANCELADO', 'DERIVADO'];
+
+      // Filtrar asignaciones reales: excluir las de tutorías ya terminadas
+      const asignaciones = asignacionesBase.filter(
+        (a: Asignacion) => !ESTADOS_TERMINADOS.includes(a.tutoria_estado)
+      );
 
       // Las tutorías que ya tienen asignacion en asignaciones_tutor
       const tutoriasConAsig = new Set<number>(asignaciones.map((a: Asignacion) => a.tutoria_id));
 
       // Para tutorías sin asignacion registrada, creamos una asignación virtual
-      // para que el calendario y la lista las muestren igualmente
+      // Excluir las que están en estado terminal (completadas/canceladas)
       const virtuales: Asignacion[] = (tutorias as Array<{
         id: number; asignatura: string; estado: string;
         estudiante_nombre: string; fecha_asignacion: string | null;
         fecha_inscripcion: string; creado_en?: string;
       }>)
-        .filter(t => !tutoriasConAsig.has(t.id))
+        .filter(t => !tutoriasConAsig.has(t.id) && !ESTADOS_TERMINADOS.includes(t.estado))
         .map(t => ({
           id:                  -(t.id),      // ID negativo para indicar que es virtual
           tutoria_id:          t.id,
