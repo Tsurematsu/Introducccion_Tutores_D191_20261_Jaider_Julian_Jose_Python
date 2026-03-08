@@ -51,7 +51,7 @@ export function estaAutenticado(): boolean {
 }
 
 /** Retorna el payload del JWT almacenado, o null si no existe */
-export function getUsuario(): { id: number; email: string; rol: Rol; nombre: string } | null {
+export function getUsuario(): { id: number; perfil_id: number | null; email: string; rol: Rol; nombre: string } | null {
   const token = localStorage.getItem('token');
   if (!token) return null;
 

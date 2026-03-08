@@ -121,7 +121,7 @@ export default async function handler(req, res) {
     // 1. Crear tablas y enums
     await db.query(SQL_INIT);
 
-    // 2. Sembrar usuarios (solo si no existen por email)
+    // 2. Sembrar usuarios y sus perfiles de dominio
     const seeded = [];
     for (const u of SEED_USERS) {
       const hash = bcrypt.hashSync(u.password, 10);
@@ -132,6 +132,19 @@ export default async function handler(req, res) {
         [u.nombre, u.email, hash, u.rol]
       );
       if (rowCount > 0) seeded.push(u.email);
+
+      // Siempre asegurar que exista el perfil en la tabla de dominio
+      if (u.rol === 'estudiante') {
+        await db.query(
+          `INSERT INTO estudiantes (nombre, email) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
+          [u.nombre, u.email]
+        );
+      } else if (u.rol === 'tutor') {
+        await db.query(
+          `INSERT INTO tutores (nombre, email) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
+          [u.nombre, u.email]
+        );
+      }
     }
 
     const msg = seeded.length

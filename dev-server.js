@@ -7,9 +7,9 @@ import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { readdir } from 'fs/promises';
 import { pathToFileURL } from 'url';
 import path from 'path';
+import { existsSync } from 'fs';
 
 const API_PORT  = 3001;
 const VITE_PORT = 5173;
@@ -28,8 +28,8 @@ async function initDB() {
     const fakeRes = {
       status: () => fakeRes,
       json: (data) => {
-        if (data.ok) console.log('  ✅ Base de datos: tablas verificadas/creadas');
-        else console.error('  ❌ Error al crear tablas:', data);
+        if (data.ok) console.log('  \u2705 Base de datos: tablas verificadas/creadas');
+        else console.error('  \u274c Error al crear tablas:', data);
         return fakeRes;
       },
       end: () => fakeRes,
@@ -37,35 +37,49 @@ async function initDB() {
     };
     await initHandler({ method: 'GET', query: {} }, fakeRes);
   } catch (err) {
-    console.error('  ❌ No se pudo conectar a la BD. Verifica DATABASE_URL en .env');
+    console.error('  \u274c No se pudo conectar a la BD. Verifica DATABASE_URL en .env');
     console.error('    ', err.message);
   }
 }
 
-// ── Cargar dinámicamente todos los handlers de api/*.js ─────────────────
+// ── Router dinámico: carga el handler en cada request (hot-reload) ───────
+//    Esto permite añadir nuevos archivos api/*.js sin reiniciar el server.
 const apiDir = path.resolve('./api');
-const files  = await readdir(apiDir);
 
-for (const file of files) {
-  // Ignorar helpers que empiezan con "_" y el archivo vacío endpoint.js
-  if (file.startsWith('_') || !file.endsWith('.js')) continue;
+app.all('/api/:endpoint', async (req, res) => {
+  const endpoint = req.params.endpoint;
 
-  const modulePath = pathToFileURL(path.join(apiDir, file)).href;
-  const mod        = await import(modulePath);
-  const handler    = mod.default;
+  // Ignorar helpers internos
+  if (endpoint.startsWith('_')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
-  if (typeof handler !== 'function') continue;
+  const filePath = path.join(apiDir, `${endpoint}.js`);
 
-  const routeName = '/' + file.replace('.js', '');
-  const route     = `/api${routeName}`;
+  if (!existsSync(filePath)) {
+    console.warn(`[API] ⚠  Endpoint no encontrado: ${filePath}`);
+    return res.status(404).json({ error: `Endpoint /api/${endpoint} no existe` });
+  }
 
-  app.all(route, (req, res) => {
-    console.log(`[API] ${req.method} ${route}`);
-    handler(req, res);
-  });
+  try {
+    // Cache-busting con query de timestamp → siempre re-importa el módulo actualizado
+    const moduleUrl = `${pathToFileURL(filePath).href}?t=${Date.now()}`;
+    const mod = await import(moduleUrl);
+    const handler = mod.default;
 
-  console.log(`  ✔ Montado: ${route}`);
-}
+    if (typeof handler !== 'function') {
+      return res.status(500).json({ error: `El handler de /api/${endpoint} no exporta una función` });
+    }
+
+    console.log(`[API] ${req.method.padEnd(6)} /api/${endpoint}`);
+    await handler(req, res);
+  } catch (err) {
+    console.error(`[API] \u274c Error en /api/${endpoint}:`, err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error interno del servidor', detail: err.message });
+    }
+  }
+});
 
 // ── Proxy todo lo demás a Vite ──────────────────────────────────────────
 app.use(
@@ -79,9 +93,10 @@ app.use(
 
 // ── Arrancar servidor y luego inicializar BD ────────────────────────────
 createServer(app).listen(API_PORT, async () => {
-  console.log(`\n🚀  Dev server arriba en http://localhost:${API_PORT}`);
-  console.log(`   • API:      http://localhost:${API_PORT}/api/...`);
-  console.log(`   • Frontend: http://localhost:${API_PORT}/ (proxy → Vite :${VITE_PORT})\n`);
-  console.log('  ⏳ Verificando tablas en PostgreSQL...');
+  console.log(`\n\ud83d\ude80  Dev server arriba en http://localhost:${API_PORT}`);
+  console.log(`   \u2022 API:      http://localhost:${API_PORT}/api/...`);
+  console.log(`   \u2022 Frontend: http://localhost:${API_PORT}/ (proxy \u2192 Vite :${VITE_PORT})\n`);
+  console.log('   \u2139\ufe0f  Nuevos archivos api/*.js se detectan autom\u00e1ticamente (sin reiniciar).\n');
+  console.log('  \u23f3 Verificando tablas en PostgreSQL...');
   await initDB();
 });

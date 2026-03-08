@@ -34,9 +34,11 @@ export class TutorOverview extends LitElement {
       if (!u) return;
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
+      // perfil_id = id en tabla tutores (puede diferir de usuarios.id)
+      const tutorId = (u as { perfil_id?: number | null }).perfil_id ?? u.id;
       const [rA, rT] = await Promise.all([
-        fetch(`/api/asignaciones?tutor_id=${u.id}`, { headers }),
-        fetch(`/api/tutorias?tutor_id=${u.id}`, { headers }),
+        fetch(`/api/asignaciones?tutor_id=${tutorId}`, { headers }),
+        fetch(`/api/tutorias?tutor_id=${tutorId}`, { headers }),
       ]);
       this.asignaciones = await rA.json();
       this.tutorias     = await rT.json();

@@ -21,7 +21,9 @@ export class TutorEstudiantes extends LitElement {
     try {
       const u = getUsuario();
       if (!u) return;
-      const r = await fetch(`/api/tutorias?tutor_id=${u.id}`, {
+      // perfil_id = id en tabla tutores (puede diferir de usuarios.id)
+      const tutorId = (u as { perfil_id?: number | null }).perfil_id ?? u.id;
+      const r = await fetch(`/api/tutorias?tutor_id=${tutorId}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       const tutorias = await r.json();

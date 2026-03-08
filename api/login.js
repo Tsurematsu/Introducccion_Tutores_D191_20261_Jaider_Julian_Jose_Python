@@ -62,9 +62,20 @@ export default async function handler(req, res) {
     }
 
     // Generar JWT
+    // Buscar el id del perfil específico (estudiantes o tutores) por email
+    let perfilId = null;
+    if (usuario.rol === 'estudiante') {
+      const perfil = await db.query('SELECT id FROM estudiantes WHERE email = $1 LIMIT 1', [usuario.email]);
+      if (perfil.rows.length > 0) perfilId = perfil.rows[0].id;
+    } else if (usuario.rol === 'tutor') {
+      const perfil = await db.query('SELECT id FROM tutores WHERE email = $1 LIMIT 1', [usuario.email]);
+      if (perfil.rows.length > 0) perfilId = perfil.rows[0].id;
+    }
+
     const token = jwt.sign(
       {
         id: usuario.id,
+        perfil_id: perfilId,   // ID en la tabla estudiantes/tutores (null para admin)
         email: usuario.email,
         rol: usuario.rol,
         nombre: usuario.nombre,
