@@ -11,18 +11,19 @@ export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const db = getPool();
   const { id } = req.query;
+
+  const client = await getPool().connect();
 
   try {
     // ── LIST / GET ONE ──────────────────────────────────────────────────
     if (req.method === 'GET') {
       if (id) {
-        const { rows } = await db.query('SELECT * FROM tutores WHERE id = $1', [id]);
+        const { rows } = await client.query('SELECT * FROM tutores WHERE id = $1', [id]);
         if (!rows.length) return sendError(res, 404, 'Tutor no encontrado');
         return res.status(200).json(rows[0]);
       }
-      const { rows } = await db.query('SELECT * FROM tutores ORDER BY nombre ASC');
+      const { rows } = await client.query('SELECT * FROM tutores ORDER BY nombre ASC');
       return res.status(200).json(rows);
     }
 
@@ -31,7 +32,7 @@ export default async function handler(req, res) {
       const { nombre, email, especialidades, disponibilidad, estado } = getBody(req);
       if (!nombre || !email) return sendError(res, 400, 'nombre y email son requeridos');
 
-      const { rows } = await db.query(
+      const { rows } = await client.query(
         `INSERT INTO tutores (nombre, email, especialidades, disponibilidad, estado)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
@@ -51,7 +52,7 @@ export default async function handler(req, res) {
       if (!id) return sendError(res, 400, 'Falta el parámetro id');
       const { nombre, email, especialidades, disponibilidad, estado } = getBody(req);
 
-      const { rows } = await db.query(
+      const { rows } = await client.query(
         `UPDATE tutores
          SET nombre         = COALESCE($1, nombre),
              email          = COALESCE($2, email),
@@ -77,7 +78,7 @@ export default async function handler(req, res) {
     // ── DELETE ──────────────────────────────────────────────────────────
     if (req.method === 'DELETE') {
       if (!id) return sendError(res, 400, 'Falta el parámetro id');
-      const { rowCount } = await db.query('DELETE FROM tutores WHERE id = $1', [id]);
+      const { rowCount } = await client.query('DELETE FROM tutores WHERE id = $1', [id]);
       if (!rowCount) return sendError(res, 404, 'Tutor no encontrado');
       return res.status(200).json({ ok: true, message: 'Tutor eliminado' });
     }
@@ -86,5 +87,7 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[api/tutores]', err);
     return sendError(res, 500, 'Error interno del servidor', err.message);
+  } finally {
+    client.release();
   }
 }

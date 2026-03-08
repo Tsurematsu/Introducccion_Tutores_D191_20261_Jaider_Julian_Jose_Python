@@ -29,32 +29,33 @@ export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const db = getPool();
   const { id, tutoria_id, tutor_id } = req.query;
+
+  const client = await getPool().connect();
 
   try {
     // ── LIST / GET ONE ──────────────────────────────────────────────────
     if (req.method === 'GET') {
       if (id) {
-        const { rows } = await db.query(`${SELECT_DETALLE} WHERE a.id = $1`, [id]);
+        const { rows } = await client.query(`${SELECT_DETALLE} WHERE a.id = $1`, [id]);
         if (!rows.length) return sendError(res, 404, 'Asignación no encontrada');
         return res.status(200).json(rows[0]);
       }
       if (tutoria_id) {
-        const { rows } = await db.query(
+        const { rows } = await client.query(
           `${SELECT_DETALLE} WHERE a.tutoria_id = $1 ORDER BY a.fecha_asignacion DESC`,
           [tutoria_id]
         );
         return res.status(200).json(rows);
       }
       if (tutor_id) {
-        const { rows } = await db.query(
+        const { rows } = await client.query(
           `${SELECT_DETALLE} WHERE a.tutor_id = $1 ORDER BY a.fecha_asignacion DESC`,
           [tutor_id]
         );
         return res.status(200).json(rows);
       }
-      const { rows } = await db.query(`${SELECT_DETALLE} ORDER BY a.fecha_asignacion DESC`);
+      const { rows } = await client.query(`${SELECT_DETALLE} ORDER BY a.fecha_asignacion DESC`);
       return res.status(200).json(rows);
     }
 
@@ -63,7 +64,6 @@ export default async function handler(req, res) {
       const { tutoria_id: tId, tutor_id: tuId, dentro_de_24h } = getBody(req);
       if (!tId || !tuId) return sendError(res, 400, 'tutoria_id y tutor_id son requeridos');
 
-      const client = await db.connect();
       try {
         await client.query('BEGIN');
         // Crear la asignación
@@ -85,8 +85,6 @@ export default async function handler(req, res) {
       } catch (e) {
         await client.query('ROLLBACK');
         throw e;
-      } finally {
-        client.release();
       }
     }
 
@@ -99,7 +97,7 @@ export default async function handler(req, res) {
         return sendError(res, 400, `Estado inválido. Valores: ${ESTADOS_VALIDOS.join(', ')}`);
       }
 
-      const { rows } = await db.query(
+      const { rows } = await client.query(
         `UPDATE asignaciones_tutor
          SET estado               = COALESCE($1::estado_asignacion, estado),
              fecha_rechazo        = COALESCE($2, fecha_rechazo),
@@ -116,7 +114,7 @@ export default async function handler(req, res) {
     // ── DELETE ──────────────────────────────────────────────────────────
     if (req.method === 'DELETE') {
       if (!id) return sendError(res, 400, 'Falta el parámetro id');
-      const { rowCount } = await db.query('DELETE FROM asignaciones_tutor WHERE id = $1', [id]);
+      const { rowCount } = await client.query('DELETE FROM asignaciones_tutor WHERE id = $1', [id]);
       if (!rowCount) return sendError(res, 404, 'Asignación no encontrada');
       return res.status(200).json({ ok: true, message: 'Asignación eliminada' });
     }
@@ -125,5 +123,7 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[api/asignaciones]', err);
     return sendError(res, 500, 'Error interno del servidor', err.message);
+  } finally {
+    client.release();
   }
 }

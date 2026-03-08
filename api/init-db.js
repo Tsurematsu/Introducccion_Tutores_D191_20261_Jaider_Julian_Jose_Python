@@ -115,17 +115,18 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return sendError(res, 405, 'Método no permitido');
 
+  const client = await getPool().connect();
+
   try {
-    const db = getPool();
 
     // 1. Crear tablas y enums
-    await db.query(SQL_INIT);
+    await client.query(SQL_INIT);
 
     // 2. Sembrar usuarios y sus perfiles de dominio
     const seeded = [];
     for (const u of SEED_USERS) {
       const hash = bcrypt.hashSync(u.password, 10);
-      const { rowCount } = await db.query(
+      const { rowCount } = await client.query(
         `INSERT INTO usuarios (nombre, email, password, rol)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (email) DO NOTHING`,
@@ -135,12 +136,12 @@ export default async function handler(req, res) {
 
       // Siempre asegurar que exista el perfil en la tabla de dominio
       if (u.rol === 'estudiante') {
-        await db.query(
+        await client.query(
           `INSERT INTO estudiantes (nombre, email) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
           [u.nombre, u.email]
         );
       } else if (u.rol === 'tutor') {
-        await db.query(
+        await client.query(
           `INSERT INTO tutores (nombre, email) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
           [u.nombre, u.email]
         );
@@ -156,5 +157,7 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[init-db]', err);
     return sendError(res, 500, 'Error al inicializar la base de datos', err.message);
+  } finally {
+    client.release();
   }
 }

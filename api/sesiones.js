@@ -12,25 +12,26 @@ export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const db = getPool();
   const { id, tutoria_id } = req.query;
+
+  const client = await getPool().connect();
 
   try {
     // ── LIST / GET ONE ──────────────────────────────────────────────────
     if (req.method === 'GET') {
       if (id) {
-        const { rows } = await db.query('SELECT * FROM sesiones WHERE id = $1', [id]);
+        const { rows } = await client.query('SELECT * FROM sesiones WHERE id = $1', [id]);
         if (!rows.length) return sendError(res, 404, 'Sesión no encontrada');
         return res.status(200).json(rows[0]);
       }
       if (tutoria_id) {
-        const { rows } = await db.query(
+        const { rows } = await client.query(
           'SELECT * FROM sesiones WHERE tutoria_id = $1 ORDER BY fecha DESC',
           [tutoria_id]
         );
         return res.status(200).json(rows);
       }
-      const { rows } = await db.query('SELECT * FROM sesiones ORDER BY fecha DESC');
+      const { rows } = await client.query('SELECT * FROM sesiones ORDER BY fecha DESC');
       return res.status(200).json(rows);
     }
 
@@ -45,10 +46,9 @@ export default async function handler(req, res) {
       if (!tId || !fecha) return sendError(res, 400, 'tutoria_id y fecha son requeridos');
 
       // Verificar que la tutoría existe
-      const check = await db.query('SELECT id FROM tutorias WHERE id = $1', [tId]);
+      const check = await client.query('SELECT id FROM tutorias WHERE id = $1', [tId]);
       if (!check.rows.length) return sendError(res, 404, 'Tutoría no encontrada');
 
-      const client = await db.connect();
       try {
         await client.query('BEGIN');
         const { rows } = await client.query(
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
       if (!id) return sendError(res, 400, 'Falta el parámetro id');
       const { fecha, tutor_evaluacion_bases, tutor_evaluacion_comprension, observaciones, estado_sesion } = getBody(req);
 
-      const { rows } = await db.query(
+      const { rows } = await client.query(
         `UPDATE sesiones
          SET fecha                        = COALESCE($1, fecha),
              tutor_evaluacion_bases       = COALESCE($2, tutor_evaluacion_bases),
@@ -100,10 +100,9 @@ export default async function handler(req, res) {
       if (!id) return sendError(res, 400, 'Falta el parámetro id');
 
       // Obtener la sesión antes de eliminar para ajustar el contador
-      const { rows: sesRows } = await db.query('SELECT * FROM sesiones WHERE id = $1', [id]);
+      const { rows: sesRows } = await client.query('SELECT * FROM sesiones WHERE id = $1', [id]);
       if (!sesRows.length) return sendError(res, 404, 'Sesión no encontrada');
 
-      const client = await db.connect();
       try {
         await client.query('BEGIN');
         await client.query('DELETE FROM sesiones WHERE id = $1', [id]);
@@ -127,5 +126,7 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[api/sesiones]', err);
     return sendError(res, 500, 'Error interno del servidor', err.message);
+  } finally {
+    client.release();
   }
 }

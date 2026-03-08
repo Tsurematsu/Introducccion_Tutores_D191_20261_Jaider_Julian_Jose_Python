@@ -19,15 +19,16 @@ export default async function handler(req, res) {
   setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const db = getPool();
   const { tutor_id } = req.query;
+
+  const client = await getPool().connect();
 
   if (!tutor_id) return sendError(res, 400, 'Falta el parámetro tutor_id');
 
   try {
     // ── GET: Retorna disponibilidad y especialidades ─────────────────────
     if (req.method === 'GET') {
-      const { rows } = await db.query(
+      const { rows } = await client.query(
         'SELECT id, nombre, email, especialidades, disponibilidad, estado FROM tutores WHERE id = $1',
         [tutor_id]
       );
@@ -59,7 +60,7 @@ export default async function handler(req, res) {
         return sendError(res, 400, 'especialidades debe ser un arreglo de strings');
       }
 
-      const { rows } = await db.query(
+      const { rows } = await client.query(
         `UPDATE tutores
          SET disponibilidad  = COALESCE($1::jsonb,  disponibilidad),
              especialidades  = COALESCE($2,         especialidades),
@@ -81,5 +82,7 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[api/disponibilidad]', err);
     return sendError(res, 500, 'Error interno del servidor', err.message);
+  } finally {
+    client.release();
   }
 }
