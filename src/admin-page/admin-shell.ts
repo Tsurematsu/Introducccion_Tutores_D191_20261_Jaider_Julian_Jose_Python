@@ -1,20 +1,22 @@
 import { LitElement, html, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { getUsuario, logout } from '../router.ts';
-import './admin-dashboard.ts';
-import './admin-estudiantes.ts';
-import './admin-tutores.ts';
-import './admin-scheduling.ts';
-import './admin-tutorias.ts';
+import { getUsuario, logout } from '../router';
+import './admin-dashboard';
+import './admin-estudiantes';
+import './admin-tutores';
+import './admin-scheduling';
+import './admin-tutorias';
+import './admin-usuarios';
 
-type AdminPage = 'dashboard' | 'estudiantes' | 'tutores' | 'scheduling' | 'tutorias';
+type AdminPage = 'dashboard' | 'estudiantes' | 'tutores' | 'scheduling' | 'tutorias' | 'usuarios';
 
 const NAV_ITEMS: { id: AdminPage; label: string; icon: string }[] = [
-  { id: 'dashboard',    label: 'Dashboard',              icon: 'dashboard'     },
-  { id: 'estudiantes',  label: 'Registro Estudiantes',   icon: 'group'         },
-  { id: 'tutores',      label: 'Registro de Tutores',    icon: 'person_pin'    },
-  { id: 'tutorias',     label: 'Tutorías',               icon: 'menu_book'     },
-  { id: 'scheduling',   label: 'Scheduling',             icon: 'calendar_month'},
+  { id: 'dashboard',   label: 'Dashboard',            icon: 'dashboard'      },
+  { id: 'usuarios',    label: 'Gestión de Usuarios',  icon: 'manage_accounts'},
+  { id: 'estudiantes', label: 'Registro Estudiantes', icon: 'group'          },
+  { id: 'tutores',     label: 'Registro de Tutores',  icon: 'person_pin'     },
+  { id: 'tutorias',    label: 'Tutorías',             icon: 'menu_book'      },
+  { id: 'scheduling',  label: 'Scheduling',           icon: 'calendar_month' },
 ];
 
 @customElement('pagina-admin')
@@ -45,6 +47,7 @@ export class PaginaAdmin extends LitElement {
 
   private _renderPage(): TemplateResult {
     switch (this.activePage) {
+      case 'usuarios':     return html`<admin-usuarios></admin-usuarios>`;
       case 'estudiantes':  return html`<admin-estudiantes></admin-estudiantes>`;
       case 'tutores':      return html`<admin-tutores></admin-tutores>`;
       case 'tutorias':     return html`<admin-tutorias></admin-tutorias>`;
